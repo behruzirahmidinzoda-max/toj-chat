@@ -51,9 +51,6 @@
         .profile-avatar-big { width: 65px; height: 65px; border-radius: 50%; background: #e2e8f0; object-fit: cover; }
         .lock-icon { font-size: 18px; margin-left: auto; }
 
-        .unread-badge { width: 12px; height: 12px; background-color: #10b981; border-radius: 50%; margin-left: auto; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulse-green 1.5s infinite; flex-shrink: 0; }
-        @keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
-
         .room-actions { display: flex; gap: 6px; width: 100%; margin-top: 5px; flex-wrap: wrap; }
         .action-btn { flex: 1; min-width: 75px; padding: 8px 4px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; }
         .btn-enter { background: #e0e7ff; color: #4f46e5; }
@@ -184,7 +181,6 @@
         }
     }
 
-    // ФУНКСИЯИ КУЧУК КАРДАНИ РАСМҲО (БАРОИ ТЕЗ КОР КАРДАН)
     function compressImage(file, callback) {
         let reader = new FileReader();
         reader.readAsDataURL(file);
@@ -193,7 +189,7 @@
             img.src = event.target.result;
             img.onload = function () {
                 let canvas = document.createElement('canvas');
-                let MAX_WIDTH = 120; // Размро хурд мекунем то барнома тормоз накунад
+                let MAX_WIDTH = 120;
                 let MAX_HEIGHT = 120;
                 let width = img.width;
                 let height = img.height;
@@ -207,40 +203,30 @@
                 canvas.height = height;
                 let ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0, width, height);
-                callback(canvas.toDataURL("image/jpeg", 0.7)); // Бо сифати 70% JPEG нигоҳ медорад
+                callback(canvas.toDataURL("image/jpeg", 0.7));
             }
         }
     }
 
-    // САБТИ НОМ ВА ВОРИДШАВИИ НАВ
     function login() {
         let name = document.getElementById('username').value.trim();
         let phone = document.getElementById('userphone').value.trim();
         
         if(!name || !phone) { alert("Лутфан ном ва рақамро нависед!"); return; }
 
-        // Санҷиш дар ҷузвдони махсуси умумии узерҳо
         database.ref('users/' + phone).once('value', (snapshot) => {
             let serverUser = snapshot.val();
-
             if(serverUser) {
-                // Агар рақам ёфт шуд ва ном ҳам дуруст бошад
                 if(serverUser.name.toLowerCase() === name.toLowerCase()) {
                     userData = serverUser;
-                    alert(`Хуш омадед дубора, ${userData.name}! Расми профили шумо барқарор шуд.`);
                 } else {
-                    // Агар рақам кӯҳнаву ном дигар бошад - профилро нав мекунем
                     userData = { name: name, phone: phone, img: defaultAvatar };
                     database.ref('users/' + phone).set(userData);
-                    alert("Профили кӯҳна бо номи нав иваз карда шуд!");
                 }
             } else {
-                // КОРБАРИ НАВ — Сабти номи тоза
                 userData = { name: name, phone: phone, img: defaultAvatar };
                 database.ref('users/' + phone).set(userData);
-                alert("Сабти ном бо муваффақият иҷро шуд!");
             }
-
             localStorage.setItem('chat_user_data', JSON.stringify(userData));
             enterApp();
         });
@@ -281,15 +267,13 @@
 
         if(newName) {
             userData.name = newName;
-            
             let saveFinal = () => {
                 localStorage.setItem('chat_user_data', JSON.stringify(userData));
-                database.ref('users/' + userData.phone).set(userData); // Дар сервер расмро нигоҳ медорад!
+                database.ref('users/' + userData.phone).set(userData);
                 updateProfileUI();
                 toggleProfileForm(false);
                 alert("Профил нав шуд!");
             }
-
             if(fileInput.files && fileInput.files[0]) {
                 compressImage(fileInput.files[0], function(compressedUrl) {
                     userData.img = compressedUrl;
@@ -326,7 +310,9 @@
     function loadRoomsFromServer() {
         database.ref('rooms').on('value', (snapshot) => {
             let rooms = snapshot.val();
-            roomsData = []; myRoomsHTML = ""; allRoomsHTML = "";
+            roomsData = []; 
+            let myRoomsHTML = ""; 
+            let allRoomsHTML = "";
 
             if(rooms) {
                 Object.keys(rooms).forEach(id => {
@@ -379,17 +365,24 @@
                 database.ref('rooms/' + roomId).set({
                     id: roomId, name: name, pass: pass, img: url, link: generateLink,
                     creatorPhone: userData.phone, creatorName: userData.name
+                }).then(() => {
+                    document.getElementById('room-name').value = '';
+                    document.getElementById('room-pass').value = '';
+                    document.getElementById('room-icon').value = '';
+                    toggleRoomForm(false);
+                    alert("Комната сохта шуд!");
+                }).catch((error) => {
+                    alert("Хатогӣ ҳангоми сохтан: " + error.message);
                 });
-                document.getElementById('room-name').value = '';
-                document.getElementById('room-pass').value = '';
-                document.getElementById('room-icon').value = '';
-                toggleRoomForm(false);
-                alert("Комната сохта шуд!");
             };
 
             if(fileInput.files && fileInput.files[0]) {
                 compressImage(fileInput.files[0], function(compressedUrl) { saveToFirebase(compressedUrl); });
-            } else { saveToFirebase(defaultAvatar); }
+            } else { 
+                saveToFirebase(defaultAvatar); 
+            }
+        } else {
+            alert("Лутфан номи комнатаро нависед!");
         }
     }
 
