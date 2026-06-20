@@ -484,28 +484,30 @@ function openChat(title, img, roomId) {
     document.getElementById('chat-window').style.display = 'flex';
     
     let msgList = document.getElementById('chat-messages-list');
-    msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
+    msgList.innerHTML = ""; // Танҳо як бор тоза мекунем
     
-    // 1. Ҳамаи шунавандаҳои пешинаро қатъ мекунем
     database.ref('messages/' + roomId).off();
     
-    // 2. Истифодаи child_added барои реалтайм илова кардани паёмҳо
-    database.ref('messages/' + roomId).orderByChild('timestamp').on('child_added', (snapshot) => {
-        let msg = snapshot.val();
+    // Истифодаи 'value' бо сортировкаи дохилӣ
+    database.ref('messages/' + roomId).orderByChild('timestamp').on('value', (snapshot) => {
+        msgList.innerHTML = ""; // Тоза кардани рӯйхат барои аз нав рендер кардан
         
-        let isMe = msg.phone === userData.phone ? "me" : "other";
+        snapshot.forEach((childSnapshot) => {
+            let msg = childSnapshot.val();
+            let isMe = msg.phone === userData.phone ? "me" : "other";
+            
+            // Илова кардани паём
+            msgList.innerHTML += `
+                <div class="msg-wrapper ${isMe}">
+                    <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
+                    <div class="msg-body">
+                        <span class="msg-username">${msg.username}</span>
+                        <div class="msg-text">${msg.text}</div>
+                    </div>
+                </div>`;
+        });
         
-        // Паёми навро танҳо ба охири рӯйхат илова мекунем (append)
-        msgList.innerHTML += `
-            <div class="msg-wrapper ${isMe}">
-                <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
-                <div class="msg-body">
-                    <span class="msg-username">${msg.username}</span>
-                    <div class="msg-text">${msg.text}</div>
-                </div>
-            </div>`;
-        
-        // Ба поён ҷаҳидан
+        // Ин ба он кӯмак мекунад, ки экран ба охирин паём "ҷаҳад"
         msgList.scrollTop = msgList.scrollHeight;
     });
 }
