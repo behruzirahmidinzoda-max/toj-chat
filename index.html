@@ -189,6 +189,7 @@
 
 <div class="phone-container">
 
+    <!-- 0. РАВЗАНАИ САБТИ НОМ -->
     <div id="auth-screen">
         <div class="auth-form">
             <h2>Сабти ном</h2>
@@ -198,6 +199,7 @@
         </div>
     </div>
 
+    <!-- РАВЗАНАИ ХУДИ ЧАТ -->
     <div id="chat-window">
         <div class="chat-header">
             <button class="back-btn" onclick="closeChat()">←</button>
@@ -210,17 +212,20 @@
         </div>
     </div>
 
+    <!-- 1. ТУГМАИ ГЛАВНИ -->
     <div id="home-screen" class="screen">
         <input type="text" id="search-input" onkeyup="searchFunction()" placeholder="🔍 Ҷустуҷӯи комнатаҳо...">
         <h3 style="margin: 10px 0;">🏢 Ҳамаи Комнатаҳо</h3>
         <div id="all-rooms-list"></div>
     </div>
 
+    <!-- 2. ТУГМАИ ЧАТ -->
     <div id="chat-screen" class="screen">
         <h3 style="margin-bottom: 10px;">💬 Чатҳои фаъол</h3>
         <div id="active-chats-list"></div>
     </div>
 
+    <!-- 3. ТУГМАИ Я -->
     <div id="profile-screen" class="screen">
         <h3 style="margin-bottom: 10px;">👤 Профили ман</h3>
         <div class="user-profile-box" id="my-profile-info">
@@ -256,6 +261,7 @@
         <div id="my-rooms-list"></div>
     </div>
 
+    <!-- ТУГМАҲОИ ПОЁН -->
     <div class="bottom-nav">
         <button class="nav-item active" onclick="switchScreen('home-screen', this)">
             <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Главни
@@ -270,6 +276,7 @@
 
 </div>
 
+<!-- Китобхонаҳои Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
@@ -299,16 +306,34 @@
         img: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     };
 
+    // САНҶИШИ АВТОМАТИИ ХОТИРА ҲАНГОМИ КУШОДАШАВӢ
+    window.onload = function() {
+        let savedUser = localStorage.getItem('chat_user_data');
+        if(savedUser) {
+            userData = JSON.parse(savedUser);
+            updateProfileUI();
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('home-screen').classList.add('active-screen');
+            listenToUnreadMessages();
+            loadRoomsFromServer(); // Боркунии комнатаҳо баъди шинохтани юзер
+        }
+    }
+
     function login() {
         let name = document.getElementById('username').value.trim();
         let phone = document.getElementById('userphone').value.trim();
         if(name && phone) {
             userData.name = name;
             userData.phone = phone;
+            
+            // Сабт кардан дар хотираи телефон
+            localStorage.setItem('chat_user_data', JSON.stringify(userData));
+            
             updateProfileUI();
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('home-screen').classList.add('active-screen');
-            listenToUnreadMessages(); // Фаъол кардани индикаторҳои паёми нав
+            listenToUnreadMessages();
+            loadRoomsFromServer();
         } else { alert("Лутфан ном ва рақамро нависед!"); }
     }
 
@@ -347,19 +372,24 @@
         if(newName && newPhone) {
             userData.name = newName;
             userData.phone = newPhone;
+            
+            let finalize = () => {
+                localStorage.setItem('chat_user_data', JSON.stringify(userData));
+                updateProfileUI();
+                toggleProfileForm(false);
+                loadRoomsFromServer(); // Рӯйхати комнатаҳоро нав мекунад, агар рақам дигар шуда бошад
+                alert("Профил таҳрир шуд!");
+            };
+
             if(fileInput.files && fileInput.files[0]) {
                 let reader = new FileReader();
                 reader.onload = function(e) {
                     userData.img = e.target.result;
-                    updateProfileUI();
-                    toggleProfileForm(false);
-                    alert("Профил таҳрир шуд!");
+                    finalize();
                 }
                 reader.readAsDataURL(fileInput.files[0]);
             } else {
-                updateProfileUI();
-                toggleProfileForm(false);
-                alert("Профил таҳрир шуд!");
+                finalize();
             }
         } else { alert("Кутиҳоро холӣ нагузоред!"); }
     }
@@ -382,17 +412,14 @@
         }
     }
 
-    // ОМАРДАНИ ПАЁМАКҲОИ ЗИНДА АЗ FIREBASE ДАР ДАРОНИ ЧАТ
     function openChat(title, img, roomId) {
         currentChatTarget = title;
         currentChatRoomId = roomId;
         document.getElementById('chat-title').innerText = title;
         document.getElementById('chat-window').style.display = 'flex';
         
-        // Хомӯш кардани гушкунаки кӯҳна
         database.ref('messages/' + roomId).off();
         
-        // Гуш кардани паёмҳои зинда аз сервер
         database.ref('messages/' + roomId).on('value', (snapshot) => {
             let messages = snapshot.val();
             let msgList = document.getElementById('chat-messages-list');
@@ -414,7 +441,6 @@
             }
         });
 
-        // Нест кардани нуқтаи сабз ҳангоми ворид шудан
         let chat = activeChats.find(c => c.id === roomId);
         if(chat) { chat.unread = false; renderActiveChats(); }
     }
@@ -425,7 +451,6 @@
         renderActiveChats(); 
     }
 
-    // НАМОИШИ ЧАТҲОИ ФАЪОЛ БО НУҚТАИ САБЗИ ДУРАХШОН
     function renderActiveChats() {
         let chatListContainer = document.getElementById('active-chats-list');
         chatListContainer.innerHTML = "";
@@ -451,7 +476,6 @@
         });
     }
 
-    // ФУНКСИЯИ ЗИНДАИ БОЛО БУРДАНИ ЧАТ ВА ФАЪОЛ КАРДАНИ НУҚТАИ САБЗ АЗ FIREBASE
     function listenToUnreadMessages() {
         database.ref('messages').on('value', (snapshot) => {
             let allMessages = snapshot.val();
@@ -464,10 +488,7 @@
                 let messagesArray = Object.values(allMessages[roomId]);
                 let lastMessage = messagesArray[messagesArray.length - 1];
 
-                // Санҷиш: оё чат аллакай дар рӯйхати чатҳои фаъол ҳаст?
                 let existingChatIndex = activeChats.findIndex(c => c.id === roomId);
-                
-                // Агар худи ҳозир дар ҳамин чат набошем ва паём аз каси дигар бошад — нуқтаи сабз фаъол шавад
                 let isUnread = (document.getElementById('chat-window').style.display !== 'flex' || currentChatRoomId !== roomId) && (lastMessage.phone !== userData.phone);
 
                 let chatObject = {
@@ -480,9 +501,9 @@
                 };
 
                 if(existingChatIndex !== -1) {
-                    activeChats.splice(existingChatIndex, 1); // Агар буд, нест кун, то ба боло барояд
+                    activeChats.splice(existingChatIndex, 1);
                 }
-                activeChats.unshift(chatObject); // Ба аввали рӯйхат (боло) гузор
+                activeChats.unshift(chatObject);
             });
             
             if(document.getElementById('chat-screen').classList.contains('active-screen')) {
@@ -491,7 +512,6 @@
         });
     }
 
-    // ФИРИСТОДАНИ ПАЁМАК БА FIREBASE
     function sendMessage() {
         let text = document.getElementById('message-input').value.trim();
         if(text && currentChatRoomId) {
@@ -507,51 +527,53 @@
         }
     }
 
-    // БОР КАРДАНИ КОМНАТАҲОИ ЗИНДА АЗ FIREBASE БАРОИ ҲАМА
-    database.ref('rooms').on('value', (snapshot) => {
-        let rooms = snapshot.val();
-        roomsData = [];
-        let myRoomsHTML = ""; 
-        let allRoomsHTML = "";
+    // ФУНКСИЯИ БОРКУНИИ КОМНАТАҲО КИ ДАР window.onload ВА login КОР МЕКУНАД
+    function loadRoomsFromServer() {
+        database.ref('rooms').on('value', (snapshot) => {
+            let rooms = snapshot.val();
+            roomsData = [];
+            let myRoomsHTML = ""; 
+            let allRoomsHTML = "";
 
-        if(rooms) {
-            Object.keys(rooms).forEach(id => {
-                let room = rooms[id];
-                roomsData.push(room);
+            if(rooms) {
+                Object.keys(rooms).forEach(id => {
+                    let room = rooms[id];
+                    roomsData.push(room);
 
-                let lockIcon = room.pass ? "🔒" : "🔓";
-                allRoomsHTML += `
-                    <div class="item-card" onclick="tryEnterRoom('${room.id}')">
-                        <div class="card-main-info">
-                            <img src="${room.img}" class="room-avatar">
-                            <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
-                            <span class="lock-icon">${lockIcon}</span>
-                        </div>
-                    </div>`;
-
-                if(room.creatorPhone === userData.phone) {
-                    myRoomsHTML += `
-                        <div class="item-card" id="my-room-${room.id}">
+                    let lockIcon = room.pass ? "🔒" : "🔓";
+                    allRoomsHTML += `
+                        <div class="item-card" onclick="tryEnterRoom('${room.id}')">
                             <div class="card-main-info">
                                 <img src="${room.img}" class="room-avatar">
                                 <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
                                 <span class="lock-icon">${lockIcon}</span>
                             </div>
-                            <div class="room-actions">
-                                <button class="action-btn btn-enter" onclick="tryEnterRoom('${room.id}')">Ворид</button>
-                                <button class="action-btn btn-share" onclick="shareRoom('${room.link}')">Поделиться</button>
-                                <button class="action-btn btn-edit" onclick="editRoom('${room.id}')">Таҳрир</button>
-                                <button class="action-btn btn-delete" onclick="deleteRoom('${room.id}')">Нест кардан</button>
-                            </div>
                         </div>`;
-                }
-            });
-        }
-        document.getElementById('my-rooms-list').innerHTML = myRoomsHTML || "<p style='color:gray; font-size:14px;'>Комнатаҳои сохтаи шумо нест.</p>";
-        document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
-    });
 
-    // СОХТАНИ КОМНАТА ДАР FIREBASE
+                    // АКНУН САНҶИШ БО ХОТИРА ДУРУСТ КОР МЕКУНАД
+                    if(room.creatorPhone === userData.phone) {
+                        myRoomsHTML += `
+                            <div class="item-card" id="my-room-${room.id}">
+                                <div class="card-main-info">
+                                    <img src="${room.img}" class="room-avatar">
+                                    <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
+                                    <span class="lock-icon">${lockIcon}</span>
+                                </div>
+                                <div class="room-actions">
+                                    <button class="action-btn btn-enter" onclick="tryEnterRoom('${room.id}')">Ворид</button>
+                                    <button class="action-btn btn-share" onclick="shareRoom('${room.link}')">Поделиться</button>
+                                    <button class="action-btn btn-edit" onclick="editRoom('${room.id}')">Таҳрир</button>
+                                    <button class="action-btn btn-delete" onclick="deleteRoom('${room.id}')">Нест кардан</button>
+                                </div>
+                            </div>`;
+                    }
+                });
+            }
+            document.getElementById('my-rooms-list').innerHTML = myRoomsHTML || "<p style='color:gray; font-size:14px;'>Комнатаҳои сохтаи шумо нест.</p>";
+            document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
+        });
+    }
+
     function createRoom() {
         let name = document.getElementById('room-name').value.trim();
         let pass = document.getElementById('room-pass').value.trim();
@@ -568,7 +590,7 @@
                     pass: pass,
                     img: url,
                     link: generateLink,
-                    creatorPhone: userData.phone
+                    creatorPhone: userData.phone // Пайваст кардани комната ба рақами телефон
                 });
                 document.getElementById('room-name').value = '';
                 document.getElementById('room-pass').value = '';
