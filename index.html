@@ -478,39 +478,33 @@
         }
     }
 
-function openChat(title, img, roomId) {
-    currentChatRoomId = roomId;
-    document.getElementById('chat-title').innerText = title;
-    document.getElementById('chat-window').style.display = 'flex';
-    
-    let msgList = document.getElementById('chat-messages-list');
-    msgList.innerHTML = ""; // Танҳо як бор тоза мекунем
-    
-    database.ref('messages/' + roomId).off();
-    
-    // Истифодаи 'value' бо сортировкаи дохилӣ
-    database.ref('messages/' + roomId).orderByChild('timestamp').on('value', (snapshot) => {
-        msgList.innerHTML = ""; // Тоза кардани рӯйхат барои аз нав рендер кардан
+    function openChat(title, img, roomId) {
+        currentChatRoomId = roomId;
+        document.getElementById('chat-title').innerText = title;
+        document.getElementById('chat-window').style.display = 'flex';
         
-        snapshot.forEach((childSnapshot) => {
-            let msg = childSnapshot.val();
-            let isMe = msg.phone === userData.phone ? "me" : "other";
+        database.ref('messages/' + roomId).off();
+        database.ref('messages/' + roomId).on('value', (snapshot) => {
+            let messages = snapshot.val();
+            let msgList = document.getElementById('chat-messages-list');
+            msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
             
-            // Илова кардани паём
-            msgList.innerHTML += `
-                <div class="msg-wrapper ${isMe}">
-                    <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
-                    <div class="msg-body">
-                        <span class="msg-username">${msg.username}</span>
-                        <div class="msg-text">${msg.text}</div>
-                    </div>
-                </div>`;
+            if(messages) {
+                Object.values(messages).forEach(msg => {
+                    let isMe = msg.phone === userData.phone ? "me" : "other";
+                    msgList.innerHTML += `
+                        <div class="msg-wrapper ${isMe}">
+                            <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
+                            <div class="msg-body">
+                                <span class="msg-username">${msg.username}</span>
+                                <div class="msg-text">${msg.text}</div>
+                            </div>
+                        </div>`;
+                });
+                msgList.scrollTop = msgList.scrollHeight;
+            }
         });
-        
-        // Ин ба он кӯмак мекунад, ки экран ба охирин паём "ҷаҳад"
-        msgList.scrollTop = msgList.scrollHeight;
-    });
-}
+    }
 
     function closeChat() { document.getElementById('chat-window').style.display = 'none'; database.ref('messages/' + currentChatRoomId).off(); }
 
