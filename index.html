@@ -162,6 +162,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
+
+
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyDPIaHuOYaee3O4hsbsuUTdMPsDlRel3yk",
@@ -336,7 +339,6 @@
         let allRoomsHTML = "";
 
         roomsData.forEach(room => {
-            // Агар филтр аз рӯи узер фаъол бошад ва ин комната ба ӯ тааллуқ надошта бошад, онро гузаронед
             if(filterByCreatorPhone && room.creatorPhone !== filterByCreatorPhone) return;
 
             let lockIcon = room.pass ? "🔒" : "🔓";
@@ -375,20 +377,17 @@
         document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
     }
 
-    // ФУНКСИЯИ НАВИ ҶУСТУҶӮ (БО НОМ ВА РАҚАМ)
     function searchFunction() {
         let input = document.getElementById('search-input').value.trim();
         let userResultBox = document.getElementById('search-user-result');
         
         if(!input) {
             userResultBox.innerHTML = "";
-            // Агар филтр фаъол набошад, ҳамаи комнатаҳоро нишон диҳад
             let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
             for (let i = 0; i < cards.length; i++) { cards[i].style.display = "flex"; }
             return;
         }
 
-        // Агар корбар рақам ворид кунад (масалан танҳо рақамҳо бошанд)
         if(/^\d+$/.test(input)) {
             database.ref('users/' + input).once('value', (snapshot) => {
                 let searchedUser = snapshot.val();
@@ -406,7 +405,6 @@
                 }
             });
         } else {
-            // Ҷустуҷӯи оддӣ аз рӯи номи комнатаҳо
             userResultBox.innerHTML = "";
             let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
             for (let i = 0; i < cards.length; i++) {
@@ -415,7 +413,6 @@
         }
     }
 
-    // ФИЛТР КАРДАНИ КОМНАТАҲОИ ЯК УЗЕРИ ХОС
     function filterRoomsByUser(phone, name) {
         filterByCreatorPhone = phone;
         document.getElementById('rooms-list-title').innerText = `🏢 Комнатаҳои ${name}`;
@@ -425,7 +422,6 @@
         renderRoomsUI();
     }
 
-    // БЕКОР КАРДАНИ ФИЛТР ВА НАМОИШИ ҲАМАИ КОМНАТАҲО
     function resetRoomFilter() {
         filterByCreatorPhone = "";
         document.getElementById('rooms-list-title').innerText = "🏢 Ҳамаи Комнатаҳо";
@@ -490,7 +486,10 @@
             msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
             
             if(messages) {
-                Object.values(messages).forEach(msg => {
+                // Ислоҳ: Паёмҳоро аз рӯи timestamp ба тартиб меорем
+                let sortedMessages = Object.values(messages).sort((a, b) => a.timestamp - b.timestamp);
+                
+                sortedMessages.forEach(msg => {
                     let isMe = msg.phone === userData.phone ? "me" : "other";
                     msgList.innerHTML += `
                         <div class="msg-wrapper ${isMe}">
@@ -551,5 +550,6 @@
     function editRoom(id) { let room = roomsData.find(r => r.id === id); if(room) { let n = prompt("Номи нав:", room.name); if(n) database.ref('rooms/' + id).update({ name: n }); } }
     function deleteRoom(id) { if(confirm("Нест карда шавад?")) { database.ref('rooms/' + id).remove(); database.ref('messages/' + id).remove(); } }
 </script>
+
 </body>
 </html>
