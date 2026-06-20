@@ -58,6 +58,9 @@
         .btn-edit { background: #fef3c7; color: #d97706; }
         .btn-delete { background: #fee2e2; color: #dc2626; }
 
+        /* Стилҳо барои корбари ёфтшуда дар ҷустуҷӯ */
+        .searched-user-box { background: #e0e7ff; border: 2px dashed #4f46e5; padding: 12px; border-radius: 14px; margin-bottom: 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; animation: fadeIn 0.3s ease; }
+
         .bottom-nav { height: calc(65px + env(safe-area-inset-bottom)); border-top: 1px solid #edf2f7; display: flex; justify-content: space-around; align-items: center; background: #ffffff; flex-shrink: 0; width: 100%; padding-bottom: env(safe-area-inset-bottom); }
         .nav-item { border: none; background: none; font-size: 12px; color: #a0aec0; display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; cursor: pointer; height: 100%; justify-content: center; }
         .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
@@ -93,8 +96,15 @@
     </div>
 
     <div id="home-screen" class="screen">
-        <input type="text" id="search-input" onkeyup="searchFunction()" placeholder="🔍 Ҷустуҷӯи комнатаҳо...">
-        <h3 style="margin: 10px 0;">🏢 Ҳамаи Комнатаҳо</h3>
+        <input type="text" id="search-input" onkeyup="searchFunction()" placeholder="🔍 Ҷустуҷӯ бо номи комната ё рақам...">
+        
+        <div id="search-user-result"></div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
+            <h3 id="rooms-list-title">🏢 Ҳамаи Комнатаҳо</h3>
+            <button id="reset-filter-btn" class="btn btn-secondary btn-sm" onclick="resetRoomFilter()" style="display: none; margin: 0;">Ҳамаашро нишон деҳ</button>
+        </div>
+        
         <div id="all-rooms-list"></div>
     </div>
 
@@ -169,6 +179,7 @@
     let currentChatRoomId = "";
     let roomsData = []; 
     let activeChats = []; 
+    let filterByCreatorPhone = ""; // Барои филтри комнатаҳо аз рӯи рақами узер
     const defaultAvatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
     
     let userData = { name: "", phone: "", img: defaultAvatar };
@@ -311,45 +322,115 @@
         database.ref('rooms').on('value', (snapshot) => {
             let rooms = snapshot.val();
             roomsData = []; 
-            let myRoomsHTML = ""; 
-            let allRoomsHTML = "";
-
             if(rooms) {
                 Object.keys(rooms).forEach(id => {
-                    let room = rooms[id];
-                    roomsData.push(room);
-                    let lockIcon = room.pass ? "🔒" : "🔓";
-
-                    allRoomsHTML += `
-                        <div class="item-card" onclick="tryEnterRoom('${room.id}')">
-                            <div class="card-main-info">
-                                <img src="${room.img || defaultAvatar}" class="room-avatar">
-                                <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
-                                <span class="lock-icon">${lockIcon}</span>
-                            </div>
-                        </div>`;
-
-                    if(room.creatorPhone === userData.phone) {
-                        myRoomsHTML += `
-                            <div class="item-card" id="my-room-${room.id}">
-                                <div class="card-main-info">
-                                    <img src="${room.img || defaultAvatar}" class="room-avatar">
-                                    <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
-                                    <span class="lock-icon">${lockIcon}</span>
-                                </div>
-                                <div class="room-actions">
-                                    <button class="action-btn btn-enter" onclick="tryEnterRoom('${room.id}')">Ворид</button>
-                                    <button class="action-btn btn-share" onclick="shareRoom('${room.link}')">Поделиться</button>
-                                    <button class="action-btn btn-edit" onclick="editRoom('${room.id}')">Таҳрир</button>
-                                    <button class="action-btn btn-delete" onclick="deleteRoom('${room.id}')">Нест кардан</button>
-                                </div>
-                            </div>`;
-                    }
+                    roomsData.push(rooms[id]);
                 });
             }
-            document.getElementById('my-rooms-list').innerHTML = myRoomsHTML || "<p style='color:gray; font-size:14px;'>Комнатаҳои сохтаи шумо нест.</p>";
-            document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
+            renderRoomsUI();
         });
+    }
+
+    function renderRoomsUI() {
+        let myRoomsHTML = ""; 
+        let allRoomsHTML = "";
+
+        roomsData.forEach(room => {
+            // Агар филтр аз рӯи узер фаъол бошад ва ин комната ба ӯ тааллуқ надошта бошад, онро гузаронед
+            if(filterByCreatorPhone && room.creatorPhone !== filterByCreatorPhone) return;
+
+            let lockIcon = room.pass ? "🔒" : "🔓";
+
+            allRoomsHTML += `
+                <div class="item-card" onclick="tryEnterRoom('${room.id}')">
+                    <div class="card-main-info">
+                        <img src="${room.img || defaultAvatar}" class="room-avatar">
+                        <div class="card-info" style="flex:1; margin-left:10px;">
+                            <b>🏢 ${room.name}</b>
+                            <span style="font-size:11px; color:gray; display:block;">Аз: ${room.creatorName}</span>
+                        </div>
+                        <span class="lock-icon">${lockIcon}</span>
+                    </div>
+                </div>`;
+
+            if(room.creatorPhone === userData.phone) {
+                myRoomsHTML += `
+                    <div class="item-card" id="my-room-${room.id}">
+                        <div class="card-main-info">
+                            <img src="${room.img || defaultAvatar}" class="room-avatar">
+                            <div class="card-info" style="flex:1; margin-left:10px;"><b>🏢 ${room.name}</b></div>
+                            <span class="lock-icon">${lockIcon}</span>
+                        </div>
+                        <div class="room-actions">
+                            <button class="action-btn btn-enter" onclick="tryEnterRoom('${room.id}')">Ворид</button>
+                            <button class="action-btn btn-share" onclick="shareRoom('${room.link}')">Поделиться</button>
+                            <button class="action-btn btn-edit" onclick="editRoom('${room.id}')">Таҳрир</button>
+                            <button class="action-btn btn-delete" onclick="deleteRoom('${room.id}')">Нест кардан</button>
+                        </div>
+                    </div>`;
+            }
+        });
+
+        document.getElementById('my-rooms-list').innerHTML = myRoomsHTML || "<p style='color:gray; font-size:14px;'>Комнатаҳои сохтаи шумо нест.</p>";
+        document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
+    }
+
+    // ФУНКСИЯИ НАВИ ҶУСТУҶӮ (БО НОМ ВА РАҚАМ)
+    function searchFunction() {
+        let input = document.getElementById('search-input').value.trim();
+        let userResultBox = document.getElementById('search-user-result');
+        
+        if(!input) {
+            userResultBox.innerHTML = "";
+            // Агар филтр фаъол набошад, ҳамаи комнатаҳоро нишон диҳад
+            let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
+            for (let i = 0; i < cards.length; i++) { cards[i].style.display = "flex"; }
+            return;
+        }
+
+        // Агар корбар рақам ворид кунад (масалан танҳо рақамҳо бошанд)
+        if(/^\d+$/.test(input)) {
+            database.ref('users/' + input).once('value', (snapshot) => {
+                let searchedUser = snapshot.val();
+                if(searchedUser) {
+                    userResultBox.innerHTML = `
+                        <div class="searched-user-box" onclick="filterRoomsByUser('${searchedUser.phone}', '${searchedUser.name}')">
+                            <img src="${searchedUser.img || defaultAvatar}" class="room-avatar">
+                            <div style="flex:1;">
+                                <b style="color:#1e1b4b;">👤 ${searchedUser.name}</b>
+                                <span style="display:block; font-size:12px; color:#4f46e5;">Рақам: ${searchedUser.phone} (Барои дидани комнатаҳо клик кунед)</span>
+                            </div>
+                        </div>`;
+                } else {
+                    userResultBox.innerHTML = "<p style='color:gray; font-size:13px; margin-bottom:10px;'>Бо ин рақам ягон профил ёфт нашуд.</p>";
+                }
+            });
+        } else {
+            // Ҷустуҷӯи оддӣ аз рӯи номи комнатаҳо
+            userResultBox.innerHTML = "";
+            let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
+            for (let i = 0; i < cards.length; i++) {
+                cards[i].style.display = cards[i].innerText.toLowerCase().includes(input.toLowerCase()) ? "flex" : "none";
+            }
+        }
+    }
+
+    // ФИЛТР КАРДАНИ КОМНАТАҲОИ ЯК УЗЕРИ ХОС
+    function filterRoomsByUser(phone, name) {
+        filterByCreatorPhone = phone;
+        document.getElementById('rooms-list-title').innerText = `🏢 Комнатаҳои ${name}`;
+        document.getElementById('reset-filter-btn').style.display = "inline-block";
+        document.getElementById('search-input').value = "";
+        document.getElementById('search-user-result').innerHTML = "";
+        renderRoomsUI();
+    }
+
+    // БЕКОР КАРДАНИ ФИЛТР ВА НАМОИШИ ҲАМАИ КОМНАТАҲО
+    function resetRoomFilter() {
+        filterByCreatorPhone = "";
+        document.getElementById('rooms-list-title').innerText = "🏢 Ҳамаи Комнатаҳо";
+        document.getElementById('reset-filter-btn').style.display = "none";
+        renderRoomsUI();
     }
 
     function createRoom() {
@@ -469,7 +550,6 @@
     function shareRoom(link) { navigator.clipboard.writeText(link).then(() => { alert("🔗 Ссылка нусхабардорӣ шуд!"); }); }
     function editRoom(id) { let room = roomsData.find(r => r.id === id); if(room) { let n = prompt("Номи нав:", room.name); if(n) database.ref('rooms/' + id).update({ name: n }); } }
     function deleteRoom(id) { if(confirm("Нест карда шавад?")) { database.ref('rooms/' + id).remove(); database.ref('messages/' + id).remove(); } }
-    function searchFunction() { let input = document.getElementById('search-input').value.toLowerCase(); let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card'); for (let i = 0; i < cards.length; i++) { cards[i].style.display = cards[i].innerText.toLowerCase().includes(input) ? "flex" : "none"; } }
 </script>
 </body>
 </html>
