@@ -477,53 +477,38 @@
             } else { openChat(room.name, room.img, room.id); }
         }
     }
-	
-	
 
 function openChat(title, img, roomId) {
     currentChatRoomId = roomId;
     document.getElementById('chat-title').innerText = title;
     document.getElementById('chat-window').style.display = 'flex';
     
+    let msgList = document.getElementById('chat-messages-list');
+    msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
+    
     // 1. Ҳамаи шунавандаҳои пешинаро қатъ мекунем
     database.ref('messages/' + roomId).off();
     
-    // 2. Шунавандаи реалтайм барои гирифтани маълумоти нав
-    database.ref('messages/' + roomId).on('value', (snapshot) => {
-        let messages = snapshot.val();
-        let msgList = document.getElementById('chat-messages-list');
+    // 2. Истифодаи child_added барои реалтайм илова кардани паёмҳо
+    database.ref('messages/' + roomId).orderByChild('timestamp').on('child_added', (snapshot) => {
+        let msg = snapshot.val();
         
-        // Тоза кардани рӯйхат
-        msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
+        let isMe = msg.phone === userData.phone ? "me" : "other";
         
-        if(messages) {
-            // 3. Табдил додани объект ба массив ва СОРТИРОВКА кардан
-            let msgArray = Object.entries(messages).map(([key, val]) => ({ ...val, id: key }));
-            
-            // Сортировка аз рӯи вақти сабт (timestamp)
-            msgArray.sort((a, b) => a.timestamp - b.timestamp);
-            
-            // 4. Намоиш додани паёмҳо бо тартиби дуруст
-            msgArray.forEach(msg => {
-                let isMe = msg.phone === userData.phone ? "me" : "other";
-                msgList.innerHTML += `
-                    <div class="msg-wrapper ${isMe}">
-                        <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
-                        <div class="msg-body">
-                            <span class="msg-username">${msg.username}</span>
-                            <div class="msg-text">${msg.text}</div>
-                        </div>
-                    </div>`;
-            });
-            
-            // 5. Ба таври худкор ба поёни чат ҷаҳидан
-            msgList.scrollTop = msgList.scrollHeight;
-        }
+        // Паёми навро танҳо ба охири рӯйхат илова мекунем (append)
+        msgList.innerHTML += `
+            <div class="msg-wrapper ${isMe}">
+                <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
+                <div class="msg-body">
+                    <span class="msg-username">${msg.username}</span>
+                    <div class="msg-text">${msg.text}</div>
+                </div>
+            </div>`;
+        
+        // Ба поён ҷаҳидан
+        msgList.scrollTop = msgList.scrollHeight;
     });
 }
-
-
-
 
     function closeChat() { document.getElementById('chat-window').style.display = 'none'; database.ref('messages/' + currentChatRoomId).off(); }
 
