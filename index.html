@@ -68,53 +68,6 @@
         
         .user-profile-box { background: linear-gradient(135deg, #f6f8fb, #eef2f7); padding: 15px; border-radius: 14px; margin-bottom: 15px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; }
         hr { border: 0; height: 1px; background: #e2e8f0; margin: 20px 0; }
-		
-		
-		
-		
-/* Контейнери умумӣ - барои ба тартиб овардани паёмҳо аз боло ба поён */
-#chat-messages-list {
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    gap: 10px;
-}
-
-/* Ҳар як паём */
-.msg-wrapper {
-    display: flex;
-    align-items: flex-end;
-    width: 100%;
-}
-
-/* Паёмҳои шумо (me) - ба рост меравад */
-.msg-wrapper.me {
-    justify-content: flex-end;
-}
-
-/* Паёмҳои дигарон (other) - дар чап мемонад */
-.msg-wrapper.other {
-    justify-content: flex-start;
-}
-
-/* Барои зеботар шудани матн */
-.msg-body {
-    padding: 10px;
-    border-radius: 10px;
-    max-width: 60%;
-}
-
-.msg-wrapper.me .msg-body {
-    background-color: #dcf8c6; /* Ранги сабзи WhatsApp */
-}
-
-.msg-wrapper.other .msg-body {
-    background-color: #ffffff; /* Ранги сафеди WhatsApp */
-    border: 1px solid #ddd;
-}	
-		
-		
-		
     </style>
 </head>
 <body>
@@ -525,38 +478,33 @@
         }
     }
 
-function openChat(title, img, roomId) {
-    currentChatRoomId = roomId;
-    document.getElementById('chat-title').innerText = title;
-    document.getElementById('chat-window').style.display = 'flex';
-    
-    database.ref('messages/' + roomId).off();
-    database.ref('messages/' + roomId).on('value', (snapshot) => {
-        let messages = snapshot.val();
-        let msgList = document.getElementById('chat-messages-list');
-        msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
+    function openChat(title, img, roomId) {
+        currentChatRoomId = roomId;
+        document.getElementById('chat-title').innerText = title;
+        document.getElementById('chat-window').style.display = 'flex';
         
-        if(messages) {
-            // ИН ҶО МУҲИМ АСТ:
-            // Мо объектро ба массив табдил медиҳем ва аз рӯи timestamp тартиб медиҳем
-            let messagesArray = Object.values(messages);
-            messagesArray.sort((a, b) => a.timestamp - b.timestamp);
+        database.ref('messages/' + roomId).off();
+        database.ref('messages/' + roomId).on('value', (snapshot) => {
+            let messages = snapshot.val();
+            let msgList = document.getElementById('chat-messages-list');
+            msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
             
-            messagesArray.forEach(msg => {
-                let isMe = msg.phone === userData.phone ? "me" : "other";
-                msgList.innerHTML += `
-                    <div class="msg-wrapper ${isMe}">
-                        <div class="msg-body">
-                            <span class="msg-username" style="font-size:10px; display:block;">${msg.username}</span>
-                            <div class="msg-text">${msg.text}</div>
-                        </div>
-                    </div>`;
-            });
-            // Ба поёни чат ҷаҳидан
-            msgList.scrollTop = msgList.scrollHeight;
-        }
-    });
-}
+            if(messages) {
+                Object.values(messages).forEach(msg => {
+                    let isMe = msg.phone === userData.phone ? "me" : "other";
+                    msgList.innerHTML += `
+                        <div class="msg-wrapper ${isMe}">
+                            <img src="${msg.userImg || defaultAvatar}" class="msg-avatar">
+                            <div class="msg-body">
+                                <span class="msg-username">${msg.username}</span>
+                                <div class="msg-text">${msg.text}</div>
+                            </div>
+                        </div>`;
+                });
+                msgList.scrollTop = msgList.scrollHeight;
+            }
+        });
+    }
 
     function closeChat() { document.getElementById('chat-window').style.display = 'none'; database.ref('messages/' + currentChatRoomId).off(); }
 
