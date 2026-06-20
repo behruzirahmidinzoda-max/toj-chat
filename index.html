@@ -126,6 +126,7 @@
         input:focus { border-color: #667eea; background: #fff; }
         .btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
         .btn-secondary { background: #e2e8f0; color: #4a5568; margin-top: 8px; }
+        .btn-danger { background: linear-gradient(135deg, #f56565 0%, #c53030 100%); color: white; margin-top: 8px; }
         .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; width: auto; display: inline-block; margin-top: 10px; }
 
         /* БЛОКҲОИ КУШОДАШАВАНДА */
@@ -189,17 +190,15 @@
 
 <div class="phone-container">
 
-    <!-- 0. РАВЗАНАИ САБТИ НОМ -->
     <div id="auth-screen">
         <div class="auth-form">
-            <h2>Сабти ном</h2>
+            <h2>Сабти ном / Воридшавӣ</h2>
             <input type="text" id="username" placeholder="Номи шумо...">
             <input type="tel" id="userphone" placeholder="Рақами телефон...">
             <button class="btn" onclick="login()">Ворид шудан</button>
         </div>
     </div>
 
-    <!-- РАВЗАНАИ ХУДИ ЧАТ -->
     <div id="chat-window">
         <div class="chat-header">
             <button class="back-btn" onclick="closeChat()">←</button>
@@ -212,20 +211,17 @@
         </div>
     </div>
 
-    <!-- 1. ТУГМАИ ГЛАВНИ -->
     <div id="home-screen" class="screen">
         <input type="text" id="search-input" onkeyup="searchFunction()" placeholder="🔍 Ҷустуҷӯи комнатаҳо...">
         <h3 style="margin: 10px 0;">🏢 Ҳамаи Комнатаҳо</h3>
         <div id="all-rooms-list"></div>
     </div>
 
-    <!-- 2. ТУГМАИ ЧАТ -->
     <div id="chat-screen" class="screen">
         <h3 style="margin-bottom: 10px;">💬 Чатҳои фаъол</h3>
         <div id="active-chats-list"></div>
     </div>
 
-    <!-- 3. ТУГМАИ Я -->
     <div id="profile-screen" class="screen">
         <h3 style="margin-bottom: 10px;">👤 Профили ман</h3>
         <div class="user-profile-box" id="my-profile-info">
@@ -261,7 +257,6 @@
         <div id="my-rooms-list"></div>
     </div>
 
-    <!-- ТУГМАҲОИ ПОЁН -->
     <div class="bottom-nav">
         <button class="nav-item active" onclick="switchScreen('home-screen', this)">
             <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Главни
@@ -276,12 +271,10 @@
 
 </div>
 
-<!-- Китобхонаҳои Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
 <script>
-    // КОДИ ФАЙРБЕЙЗИ ХУДАТ
     const firebaseConfig = {
         apiKey: "AIzaSyDPIaHuOYaee3O4hsbsuUTdMPsDlRel3yk",
         authDomain: "toj-chat-live.firebaseapp.com",
@@ -306,7 +299,7 @@
         img: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     };
 
-    // САНҶИШИ АВТОМАТИИ ХОТИРА ҲАНГОМИ КУШОДАШАВӢ
+    // САНҶИШ ҲАНГОМИ КУШОДАШАВӢ
     window.onload = function() {
         let savedUser = localStorage.getItem('chat_user_data');
         if(savedUser) {
@@ -315,26 +308,81 @@
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('home-screen').classList.add('active-screen');
             listenToUnreadMessages();
-            loadRoomsFromServer(); // Боркунии комнатаҳо баъди шинохтани юзер
+            loadRoomsFromServer();
         }
     }
 
+    // МАНТИҚИ ИНТЕЛЛЕКТУАЛИИ ВОРИДШАВӢ
     function login() {
         let name = document.getElementById('username').value.trim();
         let phone = document.getElementById('userphone').value.trim();
-        if(name && phone) {
+        
+        if(!name || !phone) { 
+            alert("Лутфан ном ва рақамро нависед!"); 
+            return; 
+        }
+
+        // Аввал дар сервер месанҷем, ки оё ин корбар вуҷуд дорад ё на
+        database.ref('rooms').once('value', (snapshot) => {
+            let rooms = snapshot.val();
+            let userFound = false;
+            let foundImg = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+
+            if (rooms) {
+                // Дар тамоми комнатаҳо мекобем, ки оё ягон комната бо ин рақам сохта шудааст?
+                Object.values(rooms).forEach(room => {
+                    if (room.creatorPhone === phone) {
+                        // Агар рақам ёфт шавад, номро месанҷем
+                        if (room.creatorName === name) {
+                            userFound = true;
+                            if (room.creatorImg) foundImg = room.creatorImg;
+                        }
+                    }
+                });
+            }
+
             userData.name = name;
             userData.phone = phone;
-            
-            // Сабт кардан дар хотираи телефон
+
+            if (userFound) {
+                // Агар ном ва рақам мувофиқат кунанд — профили кӯҳнаро бармегардонем
+                userData.img = foundImg;
+                alert("Хуш омадед! Профил ва комнатаҳои кӯҳнаи шумо барқарор шуданд.");
+            } else {
+                // Агар ном ё рақам хато бошанд ё умуман нав бошанд — ҳама чизи нав мешавад
+                userData.img = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png";
+                alert("Корбари нав ё маълумоти нав! Профили тоза сохта шуд.");
+            }
+
+            // Нигоҳ доштан дар хотираи телефон
             localStorage.setItem('chat_user_data', JSON.stringify(userData));
             
             updateProfileUI();
             document.getElementById('auth-screen').style.display = 'none';
+            
+            // Нав кардани экранҳо
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
             document.getElementById('home-screen').classList.add('active-screen');
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelector('.bottom-nav .nav-item').classList.add('active');
+
             listenToUnreadMessages();
             loadRoomsFromServer();
-        } else { alert("Лутфан ном ва рақамро нависед!"); }
+        });
+    }
+
+    // ТУГМАИ БАРОМАДАН АЗ БАРНОМА
+    function logout() {
+        if(confirm("Оё мехоҳед аз барнома бароед? (Маълумот дар сервер мемонад, вале барои дубора ворид шудан бояд ном ва рақамро дуруст нависед!)")) {
+            localStorage.removeItem('chat_user_data'); // Танҳо хотираи телефонро тоза мекунем
+            
+            // Тоза кардани инпутҳои сабти ном
+            document.getElementById('username').value = "";
+            document.getElementById('userphone').value = "";
+            
+            // Нишон додани экрани сабти ном
+            document.getElementById('auth-screen').style.display = 'flex';
+        }
     }
 
     function updateProfileUI() {
@@ -343,7 +391,8 @@
             <div style="flex: 1; font-size: 15px; color: #2d3748;">
                 <b>Ном:</b> <span>${userData.name}</span><br>
                 <span style="margin-top: 3px; display:inline-block;"><b>Рақам:</b> <span>${userData.phone}</span></span><br>
-                <button class="btn btn-secondary btn-sm" onclick="toggleProfileForm(true)">✏️ Таҳрири профил</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleProfileForm(true)">✏️ Таҳрир</button>
+                <button class="btn btn-danger btn-sm" onclick="logout()" style="margin-left: 5px;">🚪 Баромадан</button>
             </div>`;
     }
 
@@ -377,7 +426,7 @@
                 localStorage.setItem('chat_user_data', JSON.stringify(userData));
                 updateProfileUI();
                 toggleProfileForm(false);
-                loadRoomsFromServer(); // Рӯйхати комнатаҳоро нав мекунад, агар рақам дигар шуда бошад
+                loadRoomsFromServer();
                 alert("Профил таҳрир шуд!");
             };
 
@@ -388,9 +437,7 @@
                     finalize();
                 }
                 reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                finalize();
-            }
+            } else { finalize(); }
         } else { alert("Кутиҳоро холӣ нагузоред!"); }
     }
 
@@ -419,7 +466,6 @@
         document.getElementById('chat-window').style.display = 'flex';
         
         database.ref('messages/' + roomId).off();
-        
         database.ref('messages/' + roomId).on('value', (snapshot) => {
             let messages = snapshot.val();
             let msgList = document.getElementById('chat-messages-list');
@@ -500,9 +546,7 @@
                     unread: isUnread || (existingChatIndex !== -1 ? activeChats[existingChatIndex].unread : false)
                 };
 
-                if(existingChatIndex !== -1) {
-                    activeChats.splice(existingChatIndex, 1);
-                }
+                if(existingChatIndex !== -1) { activeChats.splice(existingChatIndex, 1); }
                 activeChats.unshift(chatObject);
             });
             
@@ -527,7 +571,6 @@
         }
     }
 
-    // ФУНКСИЯИ БОРКУНИИ КОМНАТАҲО КИ ДАР window.onload ВА login КОР МЕКУНАД
     function loadRoomsFromServer() {
         database.ref('rooms').on('value', (snapshot) => {
             let rooms = snapshot.val();
@@ -550,7 +593,7 @@
                             </div>
                         </div>`;
 
-                    // АКНУН САНҶИШ БО ХОТИРА ДУРУСТ КОР МЕКУНАД
+                    // САНҶИШИ ДУРУСТИ КОМНАТАҲО БО РАҚАМИ ТЕЛЕФОН
                     if(room.creatorPhone === userData.phone) {
                         myRoomsHTML += `
                             <div class="item-card" id="my-room-${room.id}">
@@ -590,7 +633,9 @@
                     pass: pass,
                     img: url,
                     link: generateLink,
-                    creatorPhone: userData.phone // Пайваст кардани комната ба рақами телефон
+                    creatorPhone: userData.phone,  // Рақам барои шиносоӣ
+                    creatorName: userData.name,    // Ном барои шиносоӣ
+                    creatorImg: userData.img       // Расми профил
                 });
                 document.getElementById('room-name').value = '';
                 document.getElementById('room-pass').value = '';
@@ -614,7 +659,7 @@
     function editRoom(id) {
         let room = roomsData.find(r => r.id === id);
         if(room) {
-            let newName = prompt("Номи нави комната:", room.name);
+            let newName = prompt("Номи naви комната:", room.name);
             let newPass = prompt("Рамзи нав (ё холӣ):", room.pass);
             if(newName && newName.trim() !== "") {
                 database.ref('rooms/' + id).update({
