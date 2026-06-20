@@ -68,6 +68,57 @@
         
         .user-profile-box { background: linear-gradient(135deg, #f6f8fb, #eef2f7); padding: 15px; border-radius: 14px; margin-bottom: 15px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 15px; }
         hr { border: 0; height: 1px; background: #e2e8f0; margin: 20px 0; }
+		
+		
+		
+		
+		/* Контейнери паёмҳо */
+#chat-messages-list {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+/* Умумии паёмҳо */
+.msg-wrapper {
+    display: flex;
+    margin-bottom: 10px;
+    align-items: flex-end;
+    max-width: 80%;
+}
+
+/* Паёмҳои шумо (ба рост) */
+.msg-wrapper.me {
+    align-self: flex-end; /* Аз рост ҷойгир шудан */
+    flex-direction: row-reverse; /* Аватар дар рост, матн дар чап */
+}
+
+/* Паёмҳои дигарон (ба чап) */
+.msg-wrapper.other {
+    align-self: flex-start; /* Аз чап ҷойгир шудан */
+}
+
+/* Тарзи намуди матн */
+.msg-body {
+    padding: 8px 12px;
+    border-radius: 15px;
+    margin: 0 8px;
+}
+
+.msg-wrapper.me .msg-body {
+    background-color: #DCF8C6; /* Ранги сабзи WhatsApp */
+}
+
+.msg-wrapper.other .msg-body {
+    background-color: #ffffff; /* Ранги сафед */
+    border: 1px solid #ddd;
+}
+		
+		
+		
+		
+		
+		
     </style>
 </head>
 <body>
@@ -161,9 +212,6 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-
-
 
 <script>
     const firebaseConfig = {
@@ -339,6 +387,7 @@
         let allRoomsHTML = "";
 
         roomsData.forEach(room => {
+            // Агар филтр аз рӯи узер фаъол бошад ва ин комната ба ӯ тааллуқ надошта бошад, онро гузаронед
             if(filterByCreatorPhone && room.creatorPhone !== filterByCreatorPhone) return;
 
             let lockIcon = room.pass ? "🔒" : "🔓";
@@ -377,17 +426,20 @@
         document.getElementById('all-rooms-list').innerHTML = allRoomsHTML || "<p style='color:gray; font-size:14px;'>Ҳеҷ комнатае мавҷуд нест.</p>";
     }
 
+    // ФУНКСИЯИ НАВИ ҶУСТУҶӮ (БО НОМ ВА РАҚАМ)
     function searchFunction() {
         let input = document.getElementById('search-input').value.trim();
         let userResultBox = document.getElementById('search-user-result');
         
         if(!input) {
             userResultBox.innerHTML = "";
+            // Агар филтр фаъол набошад, ҳамаи комнатаҳоро нишон диҳад
             let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
             for (let i = 0; i < cards.length; i++) { cards[i].style.display = "flex"; }
             return;
         }
 
+        // Агар корбар рақам ворид кунад (масалан танҳо рақамҳо бошанд)
         if(/^\d+$/.test(input)) {
             database.ref('users/' + input).once('value', (snapshot) => {
                 let searchedUser = snapshot.val();
@@ -405,6 +457,7 @@
                 }
             });
         } else {
+            // Ҷустуҷӯи оддӣ аз рӯи номи комнатаҳо
             userResultBox.innerHTML = "";
             let cards = document.getElementById('all-rooms-list').getElementsByClassName('item-card');
             for (let i = 0; i < cards.length; i++) {
@@ -413,6 +466,7 @@
         }
     }
 
+    // ФИЛТР КАРДАНИ КОМНАТАҲОИ ЯК УЗЕРИ ХОС
     function filterRoomsByUser(phone, name) {
         filterByCreatorPhone = phone;
         document.getElementById('rooms-list-title').innerText = `🏢 Комнатаҳои ${name}`;
@@ -422,6 +476,7 @@
         renderRoomsUI();
     }
 
+    // БЕКОР КАРДАНИ ФИЛТР ВА НАМОИШИ ҲАМАИ КОМНАТАҲО
     function resetRoomFilter() {
         filterByCreatorPhone = "";
         document.getElementById('rooms-list-title').innerText = "🏢 Ҳамаи Комнатаҳо";
@@ -486,10 +541,7 @@
             msgList.innerHTML = `<div style="text-align:center; color:gray; font-size:12px; width:100%;">Хуш омадед ба ${title}!</div>`;
             
             if(messages) {
-                // Ислоҳ: Паёмҳоро аз рӯи timestamp ба тартиб меорем
-                let sortedMessages = Object.values(messages).sort((a, b) => a.timestamp - b.timestamp);
-                
-                sortedMessages.forEach(msg => {
+                Object.values(messages).forEach(msg => {
                     let isMe = msg.phone === userData.phone ? "me" : "other";
                     msgList.innerHTML += `
                         <div class="msg-wrapper ${isMe}">
@@ -550,6 +602,5 @@
     function editRoom(id) { let room = roomsData.find(r => r.id === id); if(room) { let n = prompt("Номи нав:", room.name); if(n) database.ref('rooms/' + id).update({ name: n }); } }
     function deleteRoom(id) { if(confirm("Нест карда шавад?")) { database.ref('rooms/' + id).remove(); database.ref('messages/' + id).remove(); } }
 </script>
-
 </body>
 </html>
